@@ -13,6 +13,8 @@ import Animated, {
   runOnJS,
   withSpring,
 } from "react-native-reanimated";
+import db from "@/db";
+import { id } from "@instantdb/react-native";
 
 const { height: screenHeight } = Dimensions.get("window");
 
@@ -21,11 +23,9 @@ interface SketchElement {
   type: "rectangle" | "circle" | "triangle";
   x: number;
   y: number;
-  style: {
-    color: string;
-    width?: number;
-    height?: number;
-  };
+  color: string;
+  width?: number;
+  height?: number;
 }
 
 const COLORS = ["#007AFF", "#FF3B30", "#34C759", "#5856D6"];
@@ -43,9 +43,15 @@ function MovableElement({
   onSelect,
   isSelected,
 }: MovableElementProps) {
-  const translateX = useSharedValue(element.x);
-  const translateY = useSharedValue(element.y);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
+  
+  // Reset translate values when element position changes from database
+  React.useEffect(() => {
+    translateX.value = 0;
+    translateY.value = 0;
+  }, [element.x, element.y, translateX, translateY]);
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -53,18 +59,21 @@ function MovableElement({
       runOnJS(onSelect)(element.id);
     })
     .onUpdate((event) => {
-      translateX.value = element.x + event.translationX;
-      translateY.value = element.y + event.translationY;
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
     })
-    .onEnd(() => {
+    .onEnd((event) => {
       scale.value = withSpring(1);
-      runOnJS(onMove)(element.id, translateX.value, translateY.value);
+      const finalX = element.x + event.translationX;
+      const finalY = element.y + event.translationY;
+      runOnJS(onMove)(element.id, finalX, finalY);
+      // Don't reset translate values immediately - let the database update first
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
+      { translateX: element.x + translateX.value },
+      { translateY: element.y + translateY.value },
       { scale: scale.value },
     ],
   }));
@@ -77,9 +86,9 @@ function MovableElement({
             style={[
               styles.rectangleElement,
               {
-                backgroundColor: element.style.color,
-                width: element.style.width || 80,
-                height: element.style.height || 60,
+                backgroundColor: element.color,
+                width: element.width || 80,
+                height: element.height || 60,
               },
             ]}
           />
@@ -90,9 +99,9 @@ function MovableElement({
             style={[
               styles.circleElement,
               {
-                backgroundColor: element.style.color,
-                width: element.style.width || 60,
-                height: element.style.height || 60,
+                backgroundColor: element.color,
+                width: element.width || 60,
+                height: element.height || 60,
               },
             ]}
           />
@@ -103,10 +112,10 @@ function MovableElement({
             style={[
               styles.triangleElement,
               {
-                borderBottomColor: element.style.color,
-                borderBottomWidth: element.style.height || 60,
-                borderLeftWidth: (element.style.width || 60) / 2,
-                borderRightWidth: (element.style.width || 60) / 2,
+                borderBottomColor: element.color,
+                borderBottomWidth: element.height || 60,
+                borderLeftWidth: (element.width || 60) / 2,
+                borderRightWidth: (element.width || 60) / 2,
               },
             ]}
           />
@@ -132,48 +141,66 @@ function MovableElement({
 }
 
 export default function SketchCanvas() {
-  const [elements, setElements] = useState<SketchElement[]>([]);
+  const { data, isLoading, error } = db.useQuery({
+    elements: {},
+  });
+  
+  const elements = React.useMemo(() => data?.elements || [], [data?.elements]);
+  
+  // Debug connection status
+  React.useEffect(() => {
+    console.log('InstantDB Query Status:', { 
+      hasData: !!data, 
+      elementCount: elements.length, 
+      isLoading, 
+      error 
+    });
+  }, [data, elements.length, isLoading, error]);
+  
   const [selectedTool, setSelectedTool] = useState<
     "rectangle" | "circle" | "triangle"
   >("rectangle");
-  const [selectedColor, setSelectedColor] = useState("#2D3748");
+  const [selectedColor, setSelectedColor] = useState("#007AFF");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(
     null
   );
 
   const addElement = (x: number, y: number) => {
-    const newElement: SketchElement = {
-      id: Date.now().toString(),
-      type: selectedTool,
-      x,
-      y,
-      style: {
+    const elementId = id();
+    const width = selectedTool === "rectangle" ? 80 : 60;
+    const height = selectedTool === "rectangle" ? 60 : 60;
+    
+    console.log('Adding element:', { elementId, type: selectedTool, x, y, color: selectedColor });
+    
+    db.transact(
+      db.tx.elements[elementId].update({
+        type: selectedTool,
+        x,
+        y,
         color: selectedColor,
-        width:
-          selectedTool === "rectangle"
-            ? 80
-            : selectedTool === "triangle"
-            ? 60
-            : 60,
-        height:
-          selectedTool === "rectangle"
-            ? 60
-            : selectedTool === "triangle"
-            ? 60
-            : 60,
-      },
-    };
-
-    setElements((prev) => [...prev, newElement]);
-    setSelectedElementId(newElement.id);
+        width,
+        height,
+        createdAt: Date.now(),
+      })
+    ).then((result) => {
+      console.log('Transaction successful:', result);
+    }).catch((error) => {
+      console.error('Transaction failed:', error);
+    });
+    
+    setSelectedElementId(elementId);
   };
 
-  const moveElement = (id: string, x: number, y: number) => {
-    setElements((prev) =>
-      prev.map((element) =>
-        element.id === id ? { ...element, x, y } : element
-      )
-    );
+  const moveElement = (elementId: string, x: number, y: number) => {
+    console.log('Moving element:', elementId, 'to:', x, y);
+    
+    db.transact(
+      db.tx.elements[elementId].update({ x, y })
+    ).then((result) => {
+      console.log('Move transaction successful:', result);
+    }).catch((error) => {
+      console.error('Move transaction failed:', error);
+    });
   };
 
   const selectElement = (id: string) => {
@@ -181,7 +208,10 @@ export default function SketchCanvas() {
   };
 
   const clearCanvas = () => {
-    setElements([]);
+    if (elements.length > 0) {
+      const elementIds = elements.map((el: any) => el.id);
+      db.transact(elementIds.map((elementId: string) => db.tx.elements[elementId].delete()));
+    }
     setSelectedElementId(null);
   };
 
@@ -196,7 +226,7 @@ export default function SketchCanvas() {
     <View style={styles.container}>
       <GestureDetector gesture={canvasTapGesture}>
         <View style={styles.canvas}>
-          {elements.map((element) => (
+          {elements.map((element: any) => (
             <MovableElement
               key={element.id}
               element={element}
