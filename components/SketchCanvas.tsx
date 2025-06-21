@@ -20,7 +20,7 @@ const { height: screenHeight } = Dimensions.get("window");
 
 interface SketchElement {
   id: string;
-  type: "rectangle" | "circle" | "triangle";
+  type: "rectangle" | "circle" | "triangle" | "diamond" | "star" | "hexagon";
   x: number;
   y: number;
   color: string;
@@ -28,7 +28,14 @@ interface SketchElement {
   height?: number;
 }
 
-const COLORS = ["#007AFF", "#FF3B30", "#34C759", "#5856D6"];
+const COLORS = [
+  "#6366F1", // Indigo
+  "#EC4899", // Pink
+  "#10B981", // Emerald
+  "#F59E0B", // Amber
+  "#8B5CF6", // Violet
+  "#EF4444", // Red
+];
 
 interface MovableElementProps {
   element: SketchElement;
@@ -46,7 +53,7 @@ function MovableElement({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
-  
+
   // Reset translate values when element position changes from database
   React.useEffect(() => {
     translateX.value = 0;
@@ -67,7 +74,6 @@ function MovableElement({
       const finalX = element.x + event.translationX;
       const finalY = element.y + event.translationY;
       runOnJS(onMove)(element.id, finalX, finalY);
-      // Don't reset translate values immediately - let the database update first
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -120,6 +126,51 @@ function MovableElement({
             ]}
           />
         );
+      case "diamond":
+        return (
+          <View
+            style={[
+              styles.diamondElement,
+              {
+                backgroundColor: element.color,
+                width: element.width || 60,
+                height: element.height || 60,
+              },
+            ]}
+          />
+        );
+      case "star":
+        return (
+          <View style={styles.starContainer}>
+            <Text
+              style={[
+                styles.starElement,
+                {
+                  color: element.color,
+                  fontSize: (element.width || 70) * 0.8,
+                },
+              ]}
+            >
+              ★
+            </Text>
+          </View>
+        );
+      case "hexagon":
+        return (
+          <View style={styles.hexagonContainer}>
+            <Text
+              style={[
+                styles.hexagonElement,
+                {
+                  color: element.color,
+                  fontSize: (element.width || 70) * 0.7,
+                },
+              ]}
+            >
+              ⬡
+            </Text>
+          </View>
+        );
       default:
         return null;
     }
@@ -141,37 +192,33 @@ function MovableElement({
 }
 
 export default function SketchCanvas() {
-  const { data, isLoading, error } = db.useQuery({
+  const { data } = db.useQuery({
     elements: {},
   });
-  
+
   const elements = React.useMemo(() => data?.elements || [], [data?.elements]);
-  
-  // Debug connection status
-  React.useEffect(() => {
-    console.log('InstantDB Query Status:', { 
-      hasData: !!data, 
-      elementCount: elements.length, 
-      isLoading, 
-      error 
-    });
-  }, [data, elements.length, isLoading, error]);
-  
+
   const [selectedTool, setSelectedTool] = useState<
-    "rectangle" | "circle" | "triangle"
-  >("rectangle");
-  const [selectedColor, setSelectedColor] = useState("#007AFF");
+    "rectangle" | "circle" | "triangle" | "diamond" | "star" | "hexagon"
+  >("circle");
+  const [selectedColor, setSelectedColor] = useState("#6366F1");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(
     null
   );
 
   const addElement = (x: number, y: number) => {
     const elementId = id();
-    const width = selectedTool === "rectangle" ? 80 : 60;
-    const height = selectedTool === "rectangle" ? 60 : 60;
-    
-    console.log('Adding element:', { elementId, type: selectedTool, x, y, color: selectedColor });
-    
+    let width = 60;
+    let height = 60;
+
+    if (selectedTool === "rectangle") {
+      width = 80;
+      height = 60;
+    } else if (selectedTool === "star" || selectedTool === "hexagon") {
+      width = 70;
+      height = 70;
+    }
+
     db.transact(
       db.tx.elements[elementId].update({
         type: selectedTool,
@@ -182,25 +229,13 @@ export default function SketchCanvas() {
         height,
         createdAt: Date.now(),
       })
-    ).then((result) => {
-      console.log('Transaction successful:', result);
-    }).catch((error) => {
-      console.error('Transaction failed:', error);
-    });
-    
+    );
+
     setSelectedElementId(elementId);
   };
 
   const moveElement = (elementId: string, x: number, y: number) => {
-    console.log('Moving element:', elementId, 'to:', x, y);
-    
-    db.transact(
-      db.tx.elements[elementId].update({ x, y })
-    ).then((result) => {
-      console.log('Move transaction successful:', result);
-    }).catch((error) => {
-      console.error('Move transaction failed:', error);
-    });
+    db.transact(db.tx.elements[elementId].update({ x, y }));
   };
 
   const selectElement = (id: string) => {
@@ -210,7 +245,11 @@ export default function SketchCanvas() {
   const clearCanvas = () => {
     if (elements.length > 0) {
       const elementIds = elements.map((el: any) => el.id);
-      db.transact(elementIds.map((elementId: string) => db.tx.elements[elementId].delete()));
+      db.transact(
+        elementIds.map((elementId: string) =>
+          db.tx.elements[elementId].delete()
+        )
+      );
     }
     setSelectedElementId(null);
   };
@@ -241,27 +280,65 @@ export default function SketchCanvas() {
       <View style={styles.toolbar}>
         <View style={styles.topRow}>
           <View style={styles.toolButtons}>
-            {(["rectangle", "circle", "triangle"] as const).map((tool) => (
-              <TouchableOpacity
-                key={tool}
-                style={[
-                  styles.toolButton,
-                  selectedTool === tool && styles.selectedTool,
-                ]}
-                onPress={() => setSelectedTool(tool)}
-              >
-                <Text style={styles.toolButtonText}>
-                  {tool === "rectangle" ? "▭" : tool === "circle" ? "●" : "▲"}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {(
+              [
+                "circle",
+                "rectangle",
+                "triangle",
+                "diamond",
+                "star",
+                "hexagon",
+              ] as const
+            ).map((tool) => {
+              const getToolIcon = (toolType: typeof tool) => {
+                switch (toolType) {
+                  case "circle":
+                    return "●";
+                  case "rectangle":
+                    return "▭";
+                  case "triangle":
+                    return "▲";
+                  case "diamond":
+                    return "◆";
+                  case "star":
+                    return "★";
+                  case "hexagon":
+                    return "⬡";
+                  default:
+                    return "●";
+                }
+              };
+
+              return (
+                <TouchableOpacity
+                  key={tool}
+                  style={[
+                    styles.toolButton,
+                    selectedTool === tool && styles.selectedTool,
+                  ]}
+                  onPress={() => setSelectedTool(tool)}
+                >
+                  <Text
+                    style={[
+                      styles.toolButtonText,
+                      selectedTool === tool && styles.selectedToolText,
+                    ]}
+                  >
+                    {getToolIcon(tool)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-          <TouchableOpacity style={styles.clearButton} onPress={clearCanvas}>
-            <Text style={styles.clearButtonText}>Clear</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.bottomRow}>
+          <TouchableOpacity style={styles.clearButton} onPress={clearCanvas}>
+            <Text style={styles.clearButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.colorRow}>
           <View style={styles.colorPalette}>
             {COLORS.map((color) => (
               <TouchableOpacity
@@ -284,7 +361,7 @@ export default function SketchCanvas() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#FAFAFA",
   },
   canvas: {
     flex: 1,
@@ -292,19 +369,34 @@ const styles = StyleSheet.create({
   },
   elementContainer: {
     position: "absolute",
-    padding: 4,
+    padding: 6,
   },
   selectedElement: {
     borderWidth: 2,
-    borderColor: "#007AFF",
+    borderColor: "#6366F1",
     borderStyle: "dashed",
-    borderRadius: 4,
+    borderRadius: 8,
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   rectangleElement: {
-    borderRadius: 4,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   circleElement: {
     borderRadius: 100,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   triangleElement: {
     width: 0,
@@ -314,73 +406,148 @@ const styles = StyleSheet.create({
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
   },
+  diamondElement: {
+    transform: [{ rotate: "45deg" }],
+    borderRadius: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  starContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  starElement: {
+    fontWeight: "bold",
+    textShadowColor: "rgba(0,0,0,0.1)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  hexagonContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  hexagonElement: {
+    fontWeight: "bold",
+    textShadowColor: "rgba(0,0,0,0.1)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   toolbar: {
     position: "absolute",
-    bottom: 40,
+    bottom: 50,
     left: 20,
     right: 20,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 12,
-    padding: 12,
-    boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    backdropFilter: "blur(10px)",
   },
   topRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 16,
   },
   bottomRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  colorRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
   toolButtons: {
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    padding: 6,
   },
   toolButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
+    transitionDuration: "0.2s",
+    transitionProperty: "all",
+    transitionTimingFunction: "ease",
   },
   selectedTool: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#6366F1",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   toolButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  selectedToolText: {
+    color: "#FFFFFF",
   },
   colorPalette: {
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    padding: 8,
   },
   colorButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 3,
     borderColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   selectedColor: {
-    borderColor: "#333",
-    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    borderWidth: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    transform: [{ scale: 1.1 }],
   },
   clearButton: {
-    backgroundColor: "#ff4444",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+    width: 44,
+    height: 44,
+    backgroundColor: "#EF4444",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   clearButtonText: {
     color: "white",
     fontWeight: "bold",
-    fontSize: 12,
+    fontSize: 18,
   },
 });
