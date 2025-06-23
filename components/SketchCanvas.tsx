@@ -261,6 +261,25 @@ export default function SketchCanvas() {
     }
   });
 
+  const getToolIcon = (toolType: string) => {
+    switch (toolType) {
+      case "circle":
+        return "●";
+      case "rectangle":
+        return "▭";
+      case "triangle":
+        return "▲";
+      case "diamond":
+        return "◆";
+      case "star":
+        return "★";
+      case "hexagon":
+        return "⬡";
+      default:
+        return "●";
+    }
+  };
+
   return (
     <View style={styles.container}>
       <GestureDetector gesture={canvasTapGesture}>
@@ -289,46 +308,25 @@ export default function SketchCanvas() {
                 "star",
                 "hexagon",
               ] as const
-            ).map((tool) => {
-              const getToolIcon = (toolType: typeof tool) => {
-                switch (toolType) {
-                  case "circle":
-                    return "●";
-                  case "rectangle":
-                    return "▭";
-                  case "triangle":
-                    return "▲";
-                  case "diamond":
-                    return "◆";
-                  case "star":
-                    return "★";
-                  case "hexagon":
-                    return "⬡";
-                  default:
-                    return "●";
-                }
-              };
-
-              return (
-                <TouchableOpacity
-                  key={tool}
+            ).map((tool) => (
+              <TouchableOpacity
+                key={tool}
+                style={[
+                  styles.toolButton,
+                  selectedTool === tool && styles.selectedTool,
+                ]}
+                onPress={() => setSelectedTool(tool)}
+              >
+                <Text
                   style={[
-                    styles.toolButton,
-                    selectedTool === tool && styles.selectedTool,
+                    styles.toolButtonText,
+                    selectedTool === tool && styles.selectedToolText,
                   ]}
-                  onPress={() => setSelectedTool(tool)}
                 >
-                  <Text
-                    style={[
-                      styles.toolButtonText,
-                      selectedTool === tool && styles.selectedToolText,
-                    ]}
-                  >
-                    {getToolIcon(tool)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                  {getToolIcon(tool)}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -376,27 +374,15 @@ const styles = StyleSheet.create({
     borderColor: "#6366F1",
     borderStyle: "dashed",
     borderRadius: 8,
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    boxShadow: "0 2px 4px 0 rgba(99, 102, 241, 0.3)",
   },
   rectangleElement: {
     borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.1)",
   },
   circleElement: {
     borderRadius: 100,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.1)",
   },
   triangleElement: {
     width: 0,
@@ -409,11 +395,7 @@ const styles = StyleSheet.create({
   diamondElement: {
     transform: [{ rotate: "45deg" }],
     borderRadius: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.1)",
   },
   starContainer: {
     justifyContent: "center",
@@ -443,11 +425,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderRadius: 20,
     padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.1)",
     backdropFilter: "blur(10px)",
   },
   topRow: {
@@ -481,17 +459,10 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    transitionDuration: "0.2s",
-    transitionProperty: "all",
-    transitionTimingFunction: "ease",
   },
   selectedTool: {
     backgroundColor: "#6366F1",
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    boxShadow: "0 2px 4px 0 rgba(99, 102, 241, 0.3)",
   },
   toolButtonText: {
     fontSize: 20,
@@ -516,20 +487,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 3,
     borderColor: "transparent",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    boxShadow: "0 2px 3px 0 rgba(0, 0, 0, 0.1)",
   },
   selectedColor: {
     borderColor: "#FFFFFF",
     borderWidth: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
+    boxShadow: "0 4px 6px 0 rgba(0, 0, 0, 0.2)",
     transform: [{ scale: 1.1 }],
   },
   clearButton: {
@@ -539,11 +502,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    boxShadow: "0 2px 4px 0 rgba(239, 68, 68, 0.3)",
   },
   clearButtonText: {
     color: "white",
