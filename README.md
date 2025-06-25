@@ -1,50 +1,133 @@
-# Welcome to your Expo app 👋
+# Sketch App - Local-First Drawing with InstantDB 🎨
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A simple yet powerful sketching app built with **Expo** and **InstantDB** that demonstrates how to create local-first applications. Draw, create shapes, and see your creations sync seamlessly across devices in real-time.
 
-## Get started
+This project showcases the power of local-first architecture where your app works offline and syncs automatically when online, providing a smooth user experience regardless of network conditions.
 
-1. Install dependencies
+## ✨ Features
+
+- **Real-time Collaboration**: Multiple users can draw on the same canvas simultaneously
+- **Local-First Architecture**: Works offline, syncs when online
+- **Interactive Drawing**: Create and move various shapes (rectangles, circles, triangles, diamonds, stars, hexagons)
+- **Touch Gestures**: Drag and drop shapes with smooth animations
+- **Color Palette**: Multiple colors to choose from
+- **Responsive Design**: Works on iOS, Android, and web
+
+## 🚀 Tech Stack
+
+- **[Expo](https://expo.dev)** - React Native framework for universal apps
+- **[InstantDB](https://instantdb.com)** - Local-first database with real-time sync
+- **[Bun](https://bun.sh)** - Fast package manager and runtime
+- **React Native Reanimated** - Smooth gesture animations
+- **React Native Gesture Handler** - Touch gesture management
+
+## 📱 Demo
+
+Check out the live repository: **[https://github.com/betomoedano/sketch-app](https://github.com/betomoedano/sketch-app)**
+
+## 🛠️ Setup
+
+### Prerequisites
+
+- **Bun** installed on your machine
+- **Expo CLI** (optional, but recommended)
+- **InstantDB account** for the app ID
+
+### Installation
+
+1. **Clone the repository**
 
    ```bash
-   npm install
+   git clone https://github.com/betomoedano/sketch-app.git
+   cd sketch-app
    ```
 
-2. Start the app
+2. **Install dependencies**
 
    ```bash
-   npx expo start
+   bun install
    ```
 
-In the output, you'll find options to open the app in a
+3. **Set up environment variables**
+   Create a `.env` file in the root directory:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   EXPO_PUBLIC_INSTANT_APP_ID=your_instantdb_app_id
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   Get your InstantDB app ID from [InstantDB Dashboard](https://instantdb.com/dash)
 
-## Get a fresh project
+4. **Start the development server**
+   ```bash
+   bun run start
+   ```
 
-When you're ready, run:
+## 📖 How It Works
 
-```bash
-npm run reset-project
+This app demonstrates key local-first principles:
+
+- **Offline-First**: The app works without an internet connection
+- **Real-time Sync**: Changes sync across devices when online
+- **Conflict Resolution**: InstantDB handles concurrent edits automatically
+- **Optimistic Updates**: UI updates immediately, syncs in the background
+
+### Data Model
+
+The app uses a simple schema defined in `instant.schema.ts`:
+
+```typescript
+elements: {
+  type: string,     // Shape type (rectangle, circle, etc.)
+  x: number,        // X position
+  y: number,        // Y position
+  color: string,    // Shape color
+  width?: number,   // Optional width
+  height?: number,  // Optional height
+  createdAt: number // Timestamp
+}
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🎯 Key Learning Points
 
-## Learn more
+- **InstantDB Setup**: See `db.ts` for database initialization
+- **Real-time Queries**: Check `SketchCanvas.tsx` for `useQuery` usage
+- **Optimistic Updates**: Elements update immediately via `db.transact`
+- **Schema Definition**: Explore `instant.schema.ts` for data modeling
+- **Gesture Handling**: Touch interactions with React Native Gesture Handler
 
-To learn more about developing your project with Expo, look at the following resources:
+## 🔧 Available Scripts
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- `bun run start` - Start the Expo development server
+- `bun run android` - Run on Android device/emulator
+- `bun run ios` - Run on iOS device/simulator
+- `bun run web` - Run in web browser
+- `bun run lint` - Run ESLint
 
-## Join the community
+## 📚 Learn More
 
-Join our community of developers creating universal apps.
+### About InstantDB
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [InstantDB Documentation](https://instantdb.com/docs): Learn about local-first databases
+- [InstantDB Examples](https://instantdb.com/examples): More example projects
+
+### About Expo
+
+- [Expo Documentation](https://docs.expo.dev/): Learn fundamentals and advanced topics
+- [Learn Expo Tutorial](https://docs.expo.dev/tutorial/introduction/): Step-by-step tutorial
+
+### About Local-First
+
+- [Local-First Software](https://www.inkandswitch.com/local-first/): The manifesto that started it all
+- [Local-First Web Development](https://localfirstweb.dev/): Community resources
+
+## 🤝 Contributing
+
+Feel free to open issues and submit pull requests! This is a learning project and contributions are welcome.
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+Built with ❤️ using InstantDB, Expo, and Bun
